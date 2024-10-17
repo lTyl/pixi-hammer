@@ -1,6 +1,6 @@
 const Hammer = require(`hammerjs`);
 const PIXIMath = require(`@pixi/math`);
-const PIXI = require(`pixi.js`);
+const PIXIEvents = require(`@pixi/events`);
 
 /**
  * @description
@@ -24,34 +24,10 @@ var Connector = function(appView, interactionManager, preInitedHammer, rootDispl
 	self._options = {};
 
 	// hammer manager
-	if(preInitedHammer){ self._mc = preInitedHammer; }
-	else{ self._mc = new Hammer.Manager(canvas); }
-
-	self.getPixiTarget = function(center){
-		var newCenter = self.normalizePoint(center);
-		return self.getHitDisplayObject(newCenter);
-	}
-
-	// For backwards compatability with PIXI V5 and V6.
-	self.getHitDisplayObject = function(center) {
-		// Only use the V7 EventSystem API if the V5 or V6 API does not exist.
-		if (!self.interactionManager.hitTest) {
-			const boundary = new PIXI.EventBoundary(self.rootDisplayObject);
-			return boundary.hitTest(center.x, center.y);
-		}
-
-		return self.interactionManager.hitTest(center);
-	}
-
-	self.dispatchPixiEvent = function(pixiDisplayObject, eventName, event) {
-		// Use the V7 EventSystem if running V7, otherwise use old InteractionManager
-		if (!self.interactionManager.dispatchEvent) {
-			// event.type = decorateEvent(event.type);
-			pixiDisplayObject.emit(decorateEvent(event.type), event);
-			return;
-		}
-
-		self.interactionManager.dispatchEvent(pixiDisplayObject, eventName, event);
+	if (preInitedHammer) {
+		self._mc = preInitedHammer;
+	} else {
+		self._mc = new Hammer.Manager(canvas);
 	}
 };
 
@@ -137,6 +113,34 @@ Connector.prototype.updateCache = function(canvas) {
 		x: bound.left,
 		y: bound.top
 	};
+}
+
+Connector.prototype.getPixiTarget = function(center){
+	var newCenter = this.normalizePoint(center);
+	return this.getHitDisplayObject(newCenter);
+}
+
+Connector.prototype.getHitDisplayObject = function(center) {
+	if (!this.isLegacyInteraction()) {
+		const boundary = new PIXIEvents.EventBoundary(this.rootDisplayObject);
+		return boundary.hitTest(center.x, center.y);
+	}
+
+	return this.interactionManager.hitTest(center);
+}
+
+Connector.prototype.dispatchPixiEvent = function(pixiDisplayObject, eventName, event) {
+	if (!this.isLegacyInteraction()) {
+		pixiDisplayObject.emit(decorateEvent(event.type), event);
+		return;
+	}
+
+	this.interactionManager.dispatchEvent(pixiDisplayObject, eventName, event);
+}
+
+Connector.prototype.isLegacyInteraction = function() {
+	// @pixi/events doesn't have a dispatchEvent method (that lives on the EventBoundary), so we check for that to determine capability
+	return !!this.interactionManager.dispatchEvent;
 }
 
 module.exports = Connector;

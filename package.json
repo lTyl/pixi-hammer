@@ -15,11 +15,11 @@
   "author": "Paul Young <thammin@live.co.uk> (https://github.com/thammin)",
   "license": "MIT",
   "dependencies": {
-    "@pixi/math": "^5.2.0",
-    "hammerjs": "^2.0.8"
+    "@pixi/math": "^7.4.2",
+    "hammerjs": "^2.0.8",
+    "pixi.js": "7.4.2"
   },
   "devDependencies": {
-    "budo": "^10.0.4",
-    "pixi.js": "^4.7.0"
+    "budo": "^10.0.4"
   }
 }

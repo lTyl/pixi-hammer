@@ -1,12 +1,13 @@
-var Hammer = require('hammerjs');
-var PIXIMath = require('@pixi/math');
+const Hammer = require(`hammerjs`);
+const PIXIMath = require(`@pixi/math`);
+const PIXI = require(`pixi.js`);
 
 /**
  * @description
  * a instance helper to connect hammer to pixijs instances
  * @contructor
  */
-var Connector = function(appView, interactionManager, preInitedHammer) {
+var Connector = function(appView, interactionManager, preInitedHammer, rootDisplayObject) {
 	var self = this;
 	var canvas = appView;
 
@@ -17,6 +18,7 @@ var Connector = function(appView, interactionManager, preInitedHammer) {
 	var handlers = {};
 
 	self.interactionManager = interactionManager;
+	self.rootDisplayObject = rootDisplayObject;
 
 	self.updateCache(canvas);
 	self._options = {};
@@ -24,13 +26,40 @@ var Connector = function(appView, interactionManager, preInitedHammer) {
 	// hammer manager
 	if(preInitedHammer){ self._mc = preInitedHammer; }
 	else{ self._mc = new Hammer.Manager(canvas); }
-	// console.log('_mc', self._mc);
 
 	self.getPixiTarget = function(center){
 		var newCenter = self.normalizePoint(center);
-		return interactionManager.hitTest(newCenter);
+		return self.getHitDisplayObject(newCenter);
 	}
 
+	// For backwards compatability with PIXI V5 and V6.
+	self.getHitDisplayObject = function(center) {
+		// Only use the V7 EventSystem API if the V5 or V6 API does not exist.
+		if (!self.interactionManager.hitTest) {
+			console.log(`!!Using PIXI V7 EventSystem API!!`);
+			const boundary = new PIXI.EventBoundary(self.rootDisplayObject);
+			console.log(`Object boundary`, boundary);
+			console.log(`CENTER`, center);
+			var match = boundary.hitTest(center.x, center.y);
+			console.log(`Display Object Hit`, match);
+			return boundary.hitTest(center.x, center.y);
+		}
+
+		return self.interactionManager.hitTest(center);
+	}
+
+	self.dispatchPixiEvent = function(pixiDisplayObject, eventName, event) {
+		// Use the V7 EventSystem if running V7, otherwise use old InteractionManager
+		if (!self.interactionManager.dispatchEvent) {
+			event.type = decorateEvent(event.type);
+			const boundary = new PIXI.EventBoundary(self.rootDisplayObject);
+			console.log(`EVENT DATA`, event);
+			pixiDisplayObject.dispatchEvent(event);
+			return;
+		}
+
+		self.interactionManager.dispatchEvent(pixiDisplayObject, eventName, event);
+	}
 };
 
 /**
@@ -65,22 +94,20 @@ Connector.prototype.registerHandlerTypes = function(typesArray) {
 		if(evt.isFirst){
 			first = evt;
 			firstTarget = self.getPixiTarget(evt.center);
-		}
-		//not clearing these "might" be a problem
-		else if(evt.isFinal){
-			// first = null;
-			// firstTarget = null;
+			console.log(`IS FIRST`, firstTarget);
 		}
 	});
 
 	typesArray.forEach(function(type){
+
 		self._mc.on(type, function(evt){
-			if(self.config.useOnlyFirstHitTest){ var pixiTarget = firstTarget; }
-			else{ var pixiTarget = self.getPixiTarget(evt.center); }
-			if(pixiTarget){
-				self.interactionManager.dispatchEvent(pixiTarget, decorateEvent(type), evt);
+			const pixiTarget = self.config.useOnlyFirstHitTest ? firstTarget : self.getPixiTarget(evt.center);
+
+			if (pixiTarget){
+				self.dispatchPixiEvent(pixiTarget, decorateEvent(type), evt);
 			}
 		});
+
 	});
 };
 

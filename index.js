@@ -36,12 +36,7 @@ var Connector = function(appView, interactionManager, preInitedHammer, rootDispl
 	self.getHitDisplayObject = function(center) {
 		// Only use the V7 EventSystem API if the V5 or V6 API does not exist.
 		if (!self.interactionManager.hitTest) {
-			console.log(`!!Using PIXI V7 EventSystem API!!`);
 			const boundary = new PIXI.EventBoundary(self.rootDisplayObject);
-			console.log(`Object boundary`, boundary);
-			console.log(`CENTER`, center);
-			var match = boundary.hitTest(center.x, center.y);
-			console.log(`Display Object Hit`, match);
 			return boundary.hitTest(center.x, center.y);
 		}
 
@@ -51,10 +46,8 @@ var Connector = function(appView, interactionManager, preInitedHammer, rootDispl
 	self.dispatchPixiEvent = function(pixiDisplayObject, eventName, event) {
 		// Use the V7 EventSystem if running V7, otherwise use old InteractionManager
 		if (!self.interactionManager.dispatchEvent) {
-			event.type = decorateEvent(event.type);
-			const boundary = new PIXI.EventBoundary(self.rootDisplayObject);
-			console.log(`EVENT DATA`, event);
-			pixiDisplayObject.dispatchEvent(event);
+			// event.type = decorateEvent(event.type);
+			pixiDisplayObject.emit(decorateEvent(event.type), event);
 			return;
 		}
 
@@ -94,7 +87,6 @@ Connector.prototype.registerHandlerTypes = function(typesArray) {
 		if(evt.isFirst){
 			first = evt;
 			firstTarget = self.getPixiTarget(evt.center);
-			console.log(`IS FIRST`, firstTarget);
 		}
 	});
 
